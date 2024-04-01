@@ -10,12 +10,12 @@ AssetViz simplifies the visualization of subdomains from input files, presenting
 Use Go 
 
 ```bash
-go install -v github.com/mrrootsec/AssetViz@latest
+go install -v github.com/mrrootsec/assetviz@latest
 ```
 or
 
 ```bash
-git clone https://github.com/mrrootsec/AssetViz@latest
+git clone https://github.com/mrrootsec/AssetViz
 cd AssetViz
 go install
 ```
