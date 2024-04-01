@@ -61,19 +61,24 @@ func processInput(input *os.File) {
 	for scanner.Scan() {
 		domain := strings.TrimSpace(scanner.Text())
 
-		// Trim protocol and port from the domain name
-		domain = strings.TrimPrefix(domain, "http://")
-		domain = strings.TrimPrefix(domain, "https://")
-		domain = strings.Split(domain, ":")[0]
+		// Check for empty lines and single-dot domains
+		if domain != "" && domain != "." {
+			// Trim protocol, trailings and port from the domain name
+			domain = strings.TrimPrefix(domain, "http://")
+			domain = strings.TrimPrefix(domain, "https://")
+			domain = strings.ReplaceAll(domain, "..", ".")
+			domain = strings.TrimSuffix(domain, ".")
+			domain = strings.Split(domain, ":")[0]
 
-		// Validate and update domain tree
-		if isValidDomain(domain) {
-			updateDomainTree(domainTree, domain)
-		} else {
-			if !encounteredError {
-				fmt.Println("File contains invalid input")
-				encounteredError = true
-				return
+			// Validate and update domain tree
+			if isValidDomain(domain) {
+				updateDomainTree(domainTree, domain)
+			} else {
+				if !encounteredError {
+					fmt.Println("File contains invalid input")
+					encounteredError = true
+					return
+				}
 			}
 		}
 	}

@@ -1,4 +1,5 @@
-a.ns.hackerone.com
+
+a.ns.hackerone.com.
 asm-attachments.us-east-2.hackerone-user-content.com
 b.ns.hackerone.com
 cover-photos.us-east-2.hackerone-user-content.com
@@ -19,9 +20,12 @@ admin.ctf.hacker101.com
 administrator.ctf.hacker101.com
 eu-central-1.ctf.hacker101.com
 internal.ctf.hacker101.com
+.
+ 
 k8s.ctf.hacker101.com
 local.ctf.hacker101.com
 us-east-2.ctf.hacker101.com
 us-west-2.ctf.hacker101.com
-v1.ctf.hacker101.com
-wp.ctf.hacker101.com
+v1.ctf.hacker101.com.
+wp.ctf.hacker101.com..
+admin.local.hackerone.com
