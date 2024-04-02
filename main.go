@@ -66,8 +66,7 @@ func processInput(input *os.File) {
 			// Trim protocol, trailings and port from the domain name
 			domain = strings.TrimPrefix(domain, "http://")
 			domain = strings.TrimPrefix(domain, "https://")
-			domain = strings.ReplaceAll(domain, "..", ".")
-			domain = strings.TrimSuffix(domain, ".")
+			domain = strings.Trim(domain, ".")
 			domain = strings.Split(domain, ":")[0]
 
 			// Validate and update domain tree
