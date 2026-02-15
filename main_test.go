@@ -87,3 +87,20 @@ func TestProcessInputGeneratesReport(t *testing.T) {
 		t.Fatalf("unexpected report file name: %s", entries[0].Name())
 	}
 }
+
+func TestNormalizeDomain(t *testing.T) {
+	t.Parallel()
+
+	testCases := map[string]string{
+		"https://api.dev.example.com/path": "api.dev.example.com",
+		"http://example.com:8080":          "example.com",
+		"sub.example.com.":                 "sub.example.com",
+		"sub.example.com/test":             "sub.example.com",
+	}
+
+	for input, expected := range testCases {
+		if got := normalizeDomain(input); got != expected {
+			t.Fatalf("normalizeDomain(%q) = %q, want %q", input, got, expected)
+		}
+	}
+}

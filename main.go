@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"net"
+	"net/url"
 	"os"
 	"strings"
 	"text/template"
@@ -22,24 +25,40 @@ func main() {
 	flag.StringVar(&filePath, "f", "", "Path to the file containing subdomain names")
 	flag.Parse()
 
+	input, err := getInputSource(filePath)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	if input.file != nil {
+		defer input.file.Close()
+	}
+
+	processInput(input.reader)
+}
+
+type inputSource struct {
+	reader io.Reader
+	file   *os.File
+}
+
+func getInputSource(filePath string) (inputSource, error) {
 	if filePath == "" {
 		// Process input from stdin if no file path provided
 		stat, _ := os.Stdin.Stat()
 		if (stat.Mode() & os.ModeCharDevice) == 0 {
-			processInput(os.Stdin)
+			return inputSource{reader: os.Stdin}, nil
 		} else {
-			fmt.Println("Usage: assetviz -f filename OR provide input via stdin")
-			return
+			return inputSource{}, fmt.Errorf("Usage: assetviz -f filename OR provide input via stdin")
 		}
 	} else {
 		// Process input from file
 		file, err := os.Open(filePath)
 		if err != nil {
-			fmt.Println("Error opening file:", err)
-			return
+			return inputSource{}, fmt.Errorf("Error opening file: %w", err)
 		}
-		defer file.Close()
-		processInput(file)
+		return inputSource{reader: file, file: file}, nil
 	}
 }
 
@@ -53,28 +72,27 @@ func isValidDomain(domain string) bool {
 }
 
 // processInput reads input from a file or stdin and builds the domain tree
-func processInput(input *os.File) {
+func processInput(input io.Reader) {
 	domainTree := make(DomainTree)
 	scanner := bufio.NewScanner(input)
+	scanner.Buffer(make([]byte, 1024), 1024*1024)
 	var encounteredError bool
+	lineNumber := 0
 
 	for scanner.Scan() {
+		lineNumber++
 		domain := strings.TrimSpace(scanner.Text())
 
 		// Check for empty lines and single-dot domains
 		if domain != "" && domain != "." {
-			// Trim protocol, trailings and port from the domain name
-			domain = strings.TrimPrefix(domain, "http://")
-			domain = strings.TrimPrefix(domain, "https://")
-			domain = strings.Trim(domain, ".")
-			domain = strings.Split(domain, ":")[0]
+			normalizedDomain := normalizeDomain(domain)
 
 			// Validate and update domain tree
-			if isValidDomain(domain) {
-				updateDomainTree(domainTree, domain)
+			if isValidDomain(normalizedDomain) {
+				updateDomainTree(domainTree, normalizedDomain)
 			} else {
 				if !encounteredError {
-					fmt.Println("File contains invalid input")
+					fmt.Printf("File contains invalid input at line %d: %s\n", lineNumber, domain)
 					encounteredError = true
 					return
 				}
@@ -94,6 +112,37 @@ func processInput(input *os.File) {
 		return
 	}
 	generateHTMLReport(jsonBytes)
+}
+
+func normalizeDomain(raw string) string {
+	raw = strings.TrimSpace(raw)
+	raw = strings.Trim(raw, ".")
+	if raw == "" {
+		return ""
+	}
+
+	candidate := raw
+	if !strings.Contains(candidate, "://") {
+		candidate = "https://" + candidate
+	}
+
+	parsedURL, err := url.Parse(candidate)
+	if err == nil && parsedURL.Host != "" {
+		host := parsedURL.Hostname()
+		if host != "" {
+			return strings.Trim(host, ".")
+		}
+	}
+
+	if host, _, err := net.SplitHostPort(raw); err == nil {
+		return strings.Trim(host, ".")
+	}
+
+	if strings.Contains(raw, "/") {
+		raw = strings.Split(raw, "/")[0]
+	}
+
+	return strings.Trim(raw, ".")
 }
 
 // updateDomainTree updates the domain tree with the given domain
