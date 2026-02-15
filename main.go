@@ -197,6 +197,29 @@ func generateHTMLReport(jsonData []byte) {
     <script src="https://cdn.jsdelivr.net/npm/jsmind@0.8.1/es6/jsmind.draggable-node.js"></script>
 	<script type=text/javascript>
         var jsondata = {{.}}
+        const INITIAL_RENDER_DEPTH = 2
+        const ROOT_NODE_ID = 'root'
+        let jm = null
+        let fullNodeIndex = {}
+
+        function createNodeID(pathParts) {
+            return 'n:' + pathParts.map((part) => encodeURIComponent(part)).join('|')
+        }
+
+        function indexDomainTree(tree, pathParts = []) {
+            Object.entries(tree).forEach(([key, value]) => {
+                const currentPath = [...pathParts, key]
+                const nodeID = createNodeID(currentPath)
+                const childEntries = Object.entries(value)
+
+                fullNodeIndex[nodeID] = {
+                    topic: key,
+                    childIDs: childEntries.map(([childKey]) => createNodeID([...currentPath, childKey]))
+                }
+
+                indexDomainTree(value, currentPath)
+            })
+        }
 
         function convertJSONToJSMindData(myjson) {
             let mindMapTree = {
@@ -207,32 +230,77 @@ func generateHTMLReport(jsonData []byte) {
                 },
                 format: 'node_tree',
                 data: {
-                    id: 'root',
+                    id: ROOT_NODE_ID,
                     topic: 'AssetViz',
+                    expanded: true,
                     children: []
                 }
             }
 
             Object.entries(myjson).forEach(([key, value]) => {
-                mindMapTree.data.children.push(CreateJSMindNode(key, value))
-            });
+                mindMapTree.data.children.push(createInitialNode(key, value, [], 1))
+            })
 
-            console.log(mindMapTree)
             return mindMapTree
         }
 
-        function CreateJSMindNode(title, children) {
-            let node = {
-                id: title,
+        function createInitialNode(title, children, pathParts, depth) {
+            const currentPath = [...pathParts, title]
+            const node = {
+                id: createNodeID(currentPath),
                 topic: title,
+                expanded: false,
                 children: []
             }
-            if (Object.keys(children).length > 0) {
+
+            if (depth < INITIAL_RENDER_DEPTH) {
                 Object.entries(children).forEach(([key, value]) => {
-                    node.children.push(CreateJSMindNode(key, value))
-                });
+                    node.children.push(createInitialNode(key, value, currentPath, depth + 1))
+                })
             }
+
             return node
+        }
+
+        function lazyLoadChildren(nodeID) {
+            const nodeMeta = fullNodeIndex[nodeID]
+            if (!nodeMeta || nodeMeta.childIDs.length === 0 || !jm) {
+                return
+            }
+
+            const parentNode = jm.get_node(nodeID)
+            if (!parentNode) {
+                return
+            }
+
+            nodeMeta.childIDs.forEach((childID) => {
+                if (jm.get_node(childID)) {
+                    return
+                }
+
+                const childMeta = fullNodeIndex[childID]
+                if (!childMeta) {
+                    return
+                }
+
+                jm.add_node(parentNode, childID, childMeta.topic, {}, null, false)
+            })
+        }
+
+        function registerLazyExpansion() {
+            document.addEventListener('click', (event) => {
+                const expander = event.target.closest('jmexpander')
+                if (!expander) {
+                    return
+                }
+
+                const nodeID = expander.getAttribute('nodeid')
+                if (!nodeID) {
+                    return
+                }
+
+                lazyLoadChildren(nodeID)
+            })
         }
     </script>
     <style type="text/css" rel="stylesheet">
@@ -330,6 +398,8 @@ func generateHTMLReport(jsonData []byte) {
     </footer>
     <script type="text/javascript">
         function load_jsmind() {
+            indexDomainTree(jsondata)
+
             var options = {
                 container: 'jsmind_container',
                 editable: false,
@@ -362,8 +432,9 @@ func generateHTMLReport(jsonData []byte) {
                     }
                 }
             };
-            var jm = new jsMind(options);
+            jm = new jsMind(options);
             jm.show(convertJSONToJSMindData(jsondata));
+            registerLazyExpansion()
         }
         load_jsmind();
     </script>
