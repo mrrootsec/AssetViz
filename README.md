@@ -42,6 +42,23 @@ cat file | assetviz
 ```
 This will generate output to the .report folder with the filename assetviz_report_date_time.html
 
+
+## Easy runner (optional)
+
+If you want a quick wrapper command, use:
+
+```bash
+./scripts/quickviz.sh test_data/h1_subs.txt
+```
+
+or pipe data:
+
+```bash
+cat test_data/h1_subs.txt | ./scripts/quickviz.sh
+```
+
+This wrapper only simplifies invocation and still uses the same `assetviz` logic internally.
+
 ## Screenshots
 ![AssetViz_1](/images/AssetViz_2.png)
 ![AssetViz_2](/images/AssetViz_1.png)
